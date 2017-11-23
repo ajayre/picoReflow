@@ -38,6 +38,7 @@ from ovenWatcher import OvenWatcher
 
 app = bottle.Bottle()
 oven = Oven()
+#oven = Oven(simulate=False, time_step=0.1)
 ovenWatcher = OvenWatcher(oven)
 
 

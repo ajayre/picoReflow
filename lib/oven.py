@@ -49,6 +49,9 @@ class Oven (threading.Thread):
         self.daemon = True
         self.simulate = simulate
         self.time_step = time_step
+        self.heat = 0
+        # heater control is 2Hz PWM
+        self.heat_pwm = GPIO.PWM(config.gpio_heat, 2)
         self.reset()
         if simulate:
             self.temp_sensor = TempSensorSimulate(self, 0.5, self.time_step)
@@ -69,10 +72,13 @@ class Oven (threading.Thread):
         self.target = 0
         self.door = self.get_door_state()
         self.state = Oven.STATE_IDLE
-        self.set_heat(False)
+        self.heat_pwm.stop()
+        self.set_heat2(0)
+        #self.set_heat(False)
         self.set_cool(False)
         self.set_air(False)
         self.pid = PID(ki=config.pid_ki, kd=config.pid_kd, kp=config.pid_kp)
+        self.pid2 = PID2(ki=config.pid_ki, kd=config.pid_kd, kp=config.pid_kp)
 
     def run_profile(self, profile):
         log.info("Running profile %s" % profile.name)
@@ -80,6 +86,7 @@ class Oven (threading.Thread):
         self.totaltime = profile.get_duration()
         self.state = Oven.STATE_RUNNING
         self.start_time = datetime.datetime.now()
+        self.heat_pwm.start(0)
         log.info("Starting")
 
     def abort_run(self):
@@ -100,8 +107,10 @@ class Oven (threading.Thread):
                 log.info("running at %.1f deg C (Target: %.1f) , heat %.2f, cool %.2f, air %.2f, door %s (%.1fs/%.0f)" % (self.temp_sensor.temperature, self.target, self.heat, self.cool, self.air, self.door, self.runtime, self.totaltime))
                 self.target = self.profile.get_target_temperature(self.runtime)
                 pid = self.pid.compute(self.target, self.temp_sensor.temperature)
+                pid2 = self.pid2.compute(self.target, self.temp_sensor.temperature)
 
-                log.info("pid: %.3f" % pid)
+                #log.info("pid : %.3f" % pid)
+                log.info("pid2: %.3f" % pid2)
 
                 self.set_cool(pid <= -1)
                 if(pid > 0):
@@ -120,7 +129,8 @@ class Oven (threading.Thread):
                 else:
                     temperature_count = 0
                 
-                self.set_heat(pid > 0)
+                #self.set_heat(pid > 0)
+                self.set_heat2(pid2)
                 
                 #if self.profile.is_rising(self.runtime):
                 #    self.set_cool(False)
@@ -157,6 +167,9 @@ class Oven (threading.Thread):
                	 GPIO.output(config.gpio_heat, GPIO.HIGH)
                else:
                  GPIO.output(config.gpio_heat, GPIO.LOW)
+
+    def set_heat2(self, value):
+        self.heat_pwm.ChangeDutyCycle(value)
 
     def set_cool(self, value):
         if value:
@@ -345,5 +358,35 @@ class PID():
         output = sorted([-1, output, 1])[1]
         self.lastErr = error
         self.lastNow = now
+
+        return output
+
+# revised PID, outputs 0 - > 100 which can be used for 2Hz PWM
+# taken from andybrown.me.uk/2014/05/11/awreflow
+class PID2():
+    def __init__(self, ki=1, kp=1, kd=1):
+        self.ki = ki
+        self.kp = kp
+        self.kd = kd
+        self.lastNow = datetime.datetime.now()
+        self.iterm = 0
+        self.lastErr = 0
+
+    def compute(self, setpoint, ispoint):
+        # current error
+        error = float(setpoint - ispoint)
+        print "error = %.3f, sp = %.3f, at = %.3f" % (error, setpoint, ispoint)
+        # update integral (historical error)
+        self.iterm += error
+        # derivative
+        dErr = error - self.lastErr
+        print "dErr = %.3f" % dErr
+        # calculate
+        output = (self.kp * error) + (self.ki * self.iterm) + (self.kd * dErr)
+        print "output = %.3f" % output
+        output = max(min(100.0, output), 0.0)
+
+        # remember the last error
+        self.lastErr = error
 
         return output
