@@ -328,7 +328,8 @@ function saveProfile()
 
     for(var i=0; i<rawdata.length;i++)
     {
-        if(rawdata[i][0] > last)
+        data.push([rawdata[i][0], rawdata[i][1]]);
+        /*if(rawdata[i][0] > last)
         {
           data.push([rawdata[i][0], rawdata[i][1]]);
         }
@@ -346,7 +347,7 @@ function saveProfile()
           });
 
           return false;
-        }
+        }*/
 
         last = rawdata[i][0];
     }

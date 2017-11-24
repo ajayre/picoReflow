@@ -4,8 +4,10 @@ import random
 import datetime
 import logging
 import json
-
+import scipy
 import config
+
+from scipy import stats
 
 log = logging.getLogger(__name__)
 
@@ -238,8 +240,17 @@ class TempSensorReal(TempSensor):
                                      config.temp_scale)
 
     def run(self):
+        temps = []
         while True:
-            self.temperature = self.thermocouple.get()
+            # get latest temp and add to list of temps
+            temps.append(self.thermocouple.get())
+            if len(temps) == 10:
+                temps.pop(0)
+
+            # get trimmed mean, removing upper and lower 20% of values
+            # to eliminate outliers
+            self.temperature = stats.trim_mean(temps, 0.2)
+
             time.sleep(self.time_step)
 
 
@@ -375,15 +386,15 @@ class PID2():
     def compute(self, setpoint, ispoint):
         # current error
         error = float(setpoint - ispoint)
-        print "error = %.3f, sp = %.3f, at = %.3f" % (error, setpoint, ispoint)
+        #print "error = %.3f, sp = %.3f, at = %.3f" % (error, setpoint, ispoint)
         # update integral (historical error)
         self.iterm += error
         # derivative
         dErr = error - self.lastErr
-        print "dErr = %.3f" % dErr
+        #print "dErr = %.3f" % dErr
         # calculate
         output = (self.kp * error) + (self.ki * self.iterm) + (self.kd * dErr)
-        print "output = %.3f" % output
+        #print "output = %.3f" % output
         output = max(min(100.0, output), 0.0)
 
         # remember the last error
