@@ -35,18 +35,14 @@ successfully on any other OS, please update this:
   * bottle-0.12.4
   * gevent-1.0
   * gevent-websocket-0.9.3
+  * numpy
+  * scipy
 
 #### Ubuntu/Raspbian
 
     $ sudo apt-get install python-pip python-dev libevent-dev
     $ sudo pip install ez-setup
-    $ sudo pip install greenlet bottle gevent gevent-websocket
-
-#### Gentoo
-
-    $ emerge -av dev-libs/libevent dev-python/pip
-    $ pip install ez-setup
-    $ pip install greenlet bottle gevent gevent-websocket
+    $ sudo pip install greenlet bottle gevent gevent-websocket python-numpy python-scipy
 
 #### Raspberry PI deployment
 
