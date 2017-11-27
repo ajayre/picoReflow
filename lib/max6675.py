@@ -37,9 +37,23 @@ class MAX6675(object):
         GPIO.output(self.cs_pin, GPIO.HIGH)
 
     def get(self):
-        '''Reads SPI bus and returns current value of thermocouple.'''
-        self.read()
-        self.checkErrors()
+        error = False
+        attempts = 10
+        for attempt in range(0, attempts):
+            '''Reads SPI bus and returns current value of thermocouple.'''
+            self.read()
+
+            # if no error then we are done
+            error = self.checkErrors()
+            if error == False:
+                break;
+
+            # wait a bit before trying again
+            time.sleep(2)
+
+        if error == True:
+            raise MAX6675Error("No Connection") # open thermocouple
+
         return getattr(self, "to_" + self.units)(self.data_to_tc_temperature())
 
     def read(self):
@@ -68,7 +82,9 @@ class MAX6675(object):
         noConnection = (data_16 & 0x4) != 0       # tc input bit, D2
 
         if noConnection:
-            raise MAX6675Error("No Connection") # open thermocouple
+            return True
+        else:
+            return False
 
     def data_to_tc_temperature(self, data_16 = None):
         '''Takes an integer and returns a thermocouple temperature in celsius.'''
@@ -77,7 +93,7 @@ class MAX6675(object):
         # Remove bits D0-3
         tc_data = ((data_16 >> 3) & 0xFFF)
         # 12-bit resolution
-        return (tc_data * 0.25)
+        return (tc_data * 0.25) - 5  # correction of -5
 
     def to_c(self, celsius):
         '''Celsius passthrough for generic to_* method.'''

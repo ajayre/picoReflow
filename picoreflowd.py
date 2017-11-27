@@ -12,10 +12,6 @@ import geventwebsocket
 from gevent.pywsgi import WSGIServer
 from geventwebsocket.handler import WebSocketHandler
 
-# wait for 30 seconds, gives GPIO time to start working after
-# power on reset
-time.sleep(30)
-
 try:
     sys.dont_write_bytecode = True
     import config
